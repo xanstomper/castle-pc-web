@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Castle Crashers Remastered — 1:1 Browser Port</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#000; width:100vw; height:100vh; overflow:hidden; }
+  #stage { width:100vw; height:100vh; display:flex; align-items:center; justify-content:center; }
+  ruffle-player { width:100% !important; height:100% !important; display:block; outline:none; }
+  #boot { position:fixed; inset:0; background:#000; color:#fff; display:flex; flex-direction:column;
+          align-items:center; justify-content:center; font-family:monospace; z-index:10; }
+  #boot h1 { font-size:28px; letter-spacing:4px; margin-bottom:8px; }
+  #boot p { color:#888; margin-bottom:24px; }
+  #boot button { font-size:18px; padding:12px 36px; cursor:pointer; background:#1a3a6a; color:#fff;
+                 border:2px solid #3a6aad; border-radius:4px; font-family:monospace; }
+  #boot button:hover { background:#2a4f8a; }
+  #boot .keys { margin-top:28px; font-size:12px; color:#555; line-height:1.8; text-align:center; }
+  #boot.hidden { display:none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="boot">
+  <h1>CASTLE CRASHERS</h1>
+  <p>1:1 REMASTERED PC PORT &mdash; ORIGINAL ENGINE &amp; FILES VIA RUFFLE WASM</p>
+  <button id="start">START GAME</button>
+  <div class="keys">
+    1 Title &middot; 2 Menu &middot; 3 Select &middot; 4 Map &middot; 5 Level2 &middot; B Barbarian &middot;
+    Q Quaff &middot; [ ] prev/next level &middot; F fullscreen &middot; H this help<br>
+    Saves persist via localStorage. Requires a real keyboard for in-game input.
+  </div>
+</div>
+<script src="ruffle.js"></script>
+<script>
+window.RufflePlayer = window.RufflePlayer || {};
+window.RufflePlayer.config = {
+  autoplay: 'on',
+  unmuteOverlay: 'hidden',
+  letterbox: 'on',
+  openUrlMode: 'allow',
+  allowScriptAccess: true,
+  logLevel: 'warn',
+  // Xbox 360 controller -> Flash keycodes the game reads via Key.isDown.
+  // Standard gamepad indices: 0=A 1=B 2=X 3=Y 4=LB 5=RB 6=LT 7=RT
+  // 8=Back 9=Start 12-15=DPad U/D/L/R
+  gamepadButtonMapping: {
+    0: [32],        // A -> jump/confirm
+    1: [88],        // B -> heavy attack
+    2: [90],        // X -> light attack
+    3: [67],        // Y -> shield/block (C)
+    4: [65],        // LB -> left (A)
+    5: [68],        // RB -> right (D)
+    6: [69],        // LT -> magic (E)
+    7: [32],        // RT -> jump
+    8: [8],         // Back -> back
+    9: [13],        // Start -> accept/pause
+    12: [87],       // DPad Up -> W
+    13: [83],       // DPad Down -> S
+    14: [65],       // DPad Left -> A
+    15: [68]        // DPad Right -> D
+  }
+};
+
+// ---------------- Router: serves EVERY scene 1:1 from the original SWFs ----------------
+const LEVELS = Array.from({length:61}, (_,i) => `level${i+1}`);
+const SCENES = ['logo','legal','attract','menu','amenu','select','lobby','map_new','map','backoffb','quoff','quaff','endrank','endofdemo','pause','results','endings', ...LEVELS];
+
+window.getCurrentMovie = function(){ return currentMovie; };
+
+let currentMovie = 'logo/logo.swf';
+let player = null;
+let bootTimer = null;
+
+function isScene(name){
+  return SCENES.some(s => name === s || name.startsWith(s + '/')) || /^level\d+$/.test(name);
+}
+
+window.routeMovie = function(name){
+  if (!name) return;
+  // strip query, normalize
+  name = String(name).replace(/\?.*$/,'').replace(/^\.\.\//,'').replace(/^\//,'').replace(/\.swf$/,'');
+  if (!isScene(name)) { console.warn('[router] unknown scene:', name); return; }
+  const url = `/${name}/${name}.swf?v=${Date.now()}`;
+  console.log('[router] ->', url);
+  loadMovie(url);
+};
+
+window.handleFlashCommand = function(cmd, args){
+  console.log('[handleFlashCommand]', cmd, args);
+  if (cmd === 'ChangeMovie' || cmd === 'changeMovie') {
+    routeMovie(args);
+  } else if (cmd === 'ChangeLevel' || cmd === 'changeLevel') {
+    routeMovie(args);
+  }
+};
+
+// Save persistence hooks (SWFs call via getURL javascript:)
+window.ccSaveSet = function(k, v){
+  try { const s = JSON.parse(localStorage.getItem('ccSave') || '{}'); s[k] = v;
+        localStorage.setItem('ccSave', JSON.stringify(s)); } catch(e){}
+};
+window.ccSaveGet = function(k){
+  try { const s = JSON.parse(localStorage.getItem('ccSave') || '{}'); return s[k]; } catch(e){ return null; }
+};
+
+function loadMovie(url){
+  currentMovie = url.replace(/^\/|(\?v=).*/g, m => m === '?v=' ? '' : m).replace(/\?.*$/,'').replace(/^\//,'');
+  if (!player) return;
+  try { player.load({ url, autoplay:'on', unmuteOverlay:'hidden', allowScriptAccess:true, openUrlMode:'allow' }); }
+  catch(e){ console.error('[router] load failed', e); }
+}
+
+function hotkey(code){
+  const jump = {
+    'Digit1':'logo', 'Digit2':'menu', 'Digit3':'select', 'Digit4':'map_new', 'Digit5':'level2',
+    'Digit6':'level3', 'Digit7':'level10', 'Digit8':'level30', 'Digit9':'level61',
+    'KeyB':'level13', 'KeyQ':'quoff', 'KeyM':'map_new'
+  };
+  if (jump[code]) { routeMovie(jump[code]); return true; }
+  return false;
+}
+
+window.addEventListener('keydown', (e) => {
+  if (hotkey(e.code)) { e.preventDefault(); return; }
+  if (e.code === 'KeyF') {
+    const el = player && player.shadowRoot && player.shadowRoot.querySelector('canvas');
+    if (el) { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()); }
+  }
+});
+
+// ---------------- Boot ----------------
+function startGame(){
+  document.getElementById('boot').classList.add('hidden');
+  const ruffle = window.RufflePlayer.newest();
+  player = ruffle.createPlayer();
+  document.getElementById('stage').appendChild(player);
+  player.onFSCommand = (cmd, args) => console.log('[FSCommand]', cmd, args);
+  // PROVEN BOOT CHAIN (verified in cc_pc_web.log): logo -> legal -> attract ->
+  // menu -> amenu -> lobby -> map_new -> level2, driven by the SWFs' own
+  // getURL('javascript:handleFlashCommand(...)') calls + this router.
+  // (main/main.swf as root is a future path — blocked on AVM1 stream desync.)
+  currentMovie = 'logo/logo.swf';
+  player.load({
+    url: `/logo/logo.swf?v=${Date.now()}`,
+    autoplay: 'on',
+    unmuteOverlay: 'hidden',
+    allowScriptAccess: true,
+    openUrlMode: 'allow'
+  });
+}
+
+document.getElementById('start').addEventListener('click', startGame);
+</script>
+</body>
+</html>
