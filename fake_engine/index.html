@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<title>Castle Crashers — 1:1 Browser Engine</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="viewport">
+  <canvas id="game-canvas" width="1280" height="720"></canvas>
+
+  <!-- Character Selector Bar (Top Center) -->
+  <div id="knight-selector">
+    <div class="knight-pill active" data-knight="1"><div class="pill-dot"></div><span>GREEN</span></div>
+    <div class="knight-pill" data-knight="2"><div class="pill-dot"></div><span>RED</span></div>
+    <div class="knight-pill" data-knight="3"><div class="pill-dot"></div><span>BLUE</span></div>
+    <div class="knight-pill" data-knight="4"><div class="pill-dot"></div><span>ORANGE</span></div>
+  </div>
+
+  <!-- Top Right Quick Controls -->
+  <div id="quick-bar">
+    <button class="btn-icon" id="btn-stage" title="Switch Arena (M)">🏰</button>
+    <button class="btn-icon" id="btn-help" title="Controls (H)">?</button>
+    <button class="btn-icon" id="btn-fs" title="Fullscreen (F)">⛶</button>
+  </div>
+
+  <!-- On-Screen Touch Controls (Mobile) -->
+  <div id="touch-overlay">
+    <div class="touch-dpad">
+      <button class="touch-btn-dir dpad-up" data-touch="up">▲</button>
+      <button class="touch-btn-dir dpad-down" data-touch="down">▼</button>
+      <button class="touch-btn-dir dpad-left" data-touch="left">◀</button>
+      <button class="touch-btn-dir dpad-right" data-touch="right">▶</button>
+    </div>
+    <div class="touch-actions">
+      <button class="touch-action-btn btn-jump" data-touch="jump">JUMP</button>
+      <button class="touch-action-btn btn-light" data-touch="light">ATK 1</button>
+      <button class="touch-action-btn btn-heavy" data-touch="heavy">ATK 2</button>
+      <button class="touch-action-btn btn-magic" data-touch="magic">MAGIC</button>
+    </div>
+  </div>
+</div>
+
+<!-- Boot / Loading Screen -->
+<div id="boot-screen">
+  <div class="boot-logo-wrap">
+    <div class="boot-logo">CASTLE CRASHERS</div>
+    <div class="boot-sub">1:1 REMASTERED BROWSER BEAT-EM-UP ENGINE</div>
+  </div>
+  <div class="boot-bar">
+    <div class="boot-fill" id="boot-progress-fill"></div>
+  </div>
+  <button class="boot-btn" id="boot-play-btn">START GAME</button>
+</div>
+
+<!-- Controls Modal -->
+<div id="help-modal">
+  <div class="help-card">
+    <div class="help-header">
+      <div class="help-title">CASTLE CRASHERS CONTROLS</div>
+      <button class="btn-icon" id="btn-close-help">✕</button>
+    </div>
+    <table class="help-table">
+      <tr><td><span class="keycap">WASD</span> / <span class="keycap">Arrows</span></td><td>Walk &amp; Depth (2.5D Movement)</td></tr>
+      <tr><td><span class="keycap">SPACE</span></td><td>Jump (Z-Axis Physics &amp; Combos)</td></tr>
+      <tr><td><span class="keycap">Z</span></td><td>Light Attack (3-Hit Combo Slash)</td></tr>
+      <tr><td><span class="keycap">X</span></td><td>Heavy Attack (360° Whirlwind Spin)</td></tr>
+      <tr><td><span class="keycap">C</span> / <span class="keycap">SHIFT</span></td><td>Shield Block (Reduces DMG 90%)</td></tr>
+      <tr><td><span class="keycap">E</span></td><td>Elemental Magic Cast (Lightning / Poison / Ice / Fire)</td></tr>
+      <tr><td><span class="keycap">1</span> - <span class="keycap">4</span></td><td>Switch Knight (Green, Red, Blue, Orange)</td></tr>
+      <tr><td><span class="keycap">M</span></td><td>Switch Arena (Home Castle / Barbarian Warpath)</td></tr>
+      <tr><td><span class="keycap">H</span></td><td>Toggle Controls Help</td></tr>
+      <tr><td><span class="keycap">F</span></td><td>Toggle Fullscreen</td></tr>
+    </table>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
