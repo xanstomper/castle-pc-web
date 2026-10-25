@@ -137,8 +137,12 @@ window.__ccKeys = {};
 window.addEventListener('keydown', e => { window.__ccKeys[e.code] = true; });
 window.addEventListener('keyup', e => { window.__ccKeys[e.code] = false; });
 window.addEventListener('keydown', (e) => {
-  if ((e.code === 'Enter' || e.code === 'Space') && window.getCurrentMovie().startsWith('menu/')) {
+  const mv = window.getCurrentMovie();
+  if ((e.code === 'Enter' || e.code === 'Space') && mv.startsWith('menu/')) {
     window.handleFlashCommand('ChangeMovie', 'lobby.cok6');
+  } else if ((e.code === 'Enter' || e.code === 'Space') && mv.startsWith('lobby/')) {
+    // exe-role bridge: confirm character -> exit lobby -> load level 1
+    window.handleFlashCommand('f_ChangeLevel', 'level1');
   }
 });
 

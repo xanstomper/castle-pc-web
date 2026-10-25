@@ -40,7 +40,7 @@ window.RufflePlayer.config = {
   letterbox: 'on',
   openUrlMode: 'allow',
   allowScriptAccess: true,
-  logLevel: 'warn',
+  logLevel: 'info',
   // Xbox 360 controller -> Flash keycodes the game reads via Key.isDown.
   // Standard gamepad indices: 0=A 1=B 2=X 3=Y 4=LB 5=RB 6=LT 7=RT
   // 8=Back 9=Start 12-15=DPad U/D/L/R
@@ -80,6 +80,9 @@ window.routeMovie = function(name){
   if (!name) return;
   // strip query, normalize
   name = String(name).replace(/\?.*$/,'').replace(/^\.\.\//,'').replace(/^\//,'').replace(/\.swf$/,'');
+  if (name.includes('/')) name = name.split('/').pop();
+  const dot = name.indexOf('.');
+  if (dot > 0) name = name.slice(0, dot);
   if (!isScene(name)) { console.warn('[router] unknown scene:', name); return; }
   const url = `/${name}/${name}.swf?v=${Date.now()}`;
   console.log('[router] ->', url);
@@ -88,9 +91,7 @@ window.routeMovie = function(name){
 
 window.handleFlashCommand = function(cmd, args){
   console.log('[handleFlashCommand]', cmd, args);
-  if (cmd === 'ChangeMovie' || cmd === 'changeMovie') {
-    routeMovie(args);
-  } else if (cmd === 'ChangeLevel' || cmd === 'changeLevel') {
+  if (cmd === 'ChangeMovie' || cmd === 'changeMovie' || cmd === 'f_ChangeLevel' || cmd === 'f_LoadNewLevel') {
     routeMovie(args);
   }
 };
@@ -107,14 +108,20 @@ window.ccSaveGet = function(k){
 function loadMovie(url){
   currentMovie = url.replace(/^\/|(\?v=).*/g, m => m === '?v=' ? '' : m).replace(/\?.*$/,'').replace(/^\//,'');
   if (!player) return;
-  try { player.load({ url, autoplay:'on', unmuteOverlay:'hidden', allowScriptAccess:true, openUrlMode:'allow' }); }
+  try {
+    player.load({ url, autoplay:'on', unmuteOverlay:'hidden', allowScriptAccess:true, openUrlMode:'allow' });
+    // Ruffle headless quirk: autoplay flag sometimes doesn't stick — force-play with retries
+    let tries = 0;
+    const fp = () => { try { player.play(); } catch(e) {} if (++tries < 8) setTimeout(fp, 1000); };
+    setTimeout(fp, 500);
+  }
   catch(e){ console.error('[router] load failed', e); }
 }
 
 function hotkey(code){
+  // NOTE: Digit keys intentionally NOT hotkeyed — attract/menu SWFs read
+  // Key.isDown('1'..'4') for port select; DOM hotkeys would steal them.
   const jump = {
-    'Digit1':'logo', 'Digit2':'menu', 'Digit3':'select', 'Digit4':'map_new', 'Digit5':'level2',
-    'Digit6':'level3', 'Digit7':'level10', 'Digit8':'level30', 'Digit9':'level61',
     'KeyB':'level13', 'KeyQ':'quoff', 'KeyM':'map_new'
   };
   if (jump[code]) { routeMovie(jump[code]); return true; }
@@ -135,7 +142,21 @@ function startGame(){
   const ruffle = window.RufflePlayer.newest();
   player = ruffle.createPlayer();
   document.getElementById('stage').appendChild(player);
-  player.onFSCommand = (cmd, args) => console.log('[FSCommand]', cmd, args);
+  player.onFSCommand = (cmd, args) => {
+    // FSCommand bridge (GetUrl2 'FSCommand:Name' path). Ruffle web calls
+    // callFSCommand -> handlers; args carry the stub's CCEVT-built string
+    // (e.g. 'CCEVT\x1fnavigate\x1flegal.cok6') — strip prefix.
+    console.log('[FSCommand]', cmd, args);
+    let a = '';
+    if (typeof args === 'string' && args.length) {
+      const p = args.lastIndexOf('\x1f');
+      a = p >= 0 ? args.slice(p + 1) : args;
+    }
+    window.handleFlashCommand(cmd, a);
+  };
+  if (typeof player.addFSCommandHandler === 'function') {
+    player.addFSCommandHandler((cmd, args) => player.onFSCommand(cmd, args));
+  }
   // PROVEN BOOT CHAIN (verified in cc_pc_web.log): logo -> legal -> attract ->
   // menu -> amenu -> lobby -> map_new -> level2, driven by the SWFs' own
   // getURL('javascript:handleFlashCommand(...)') calls + this router.
@@ -148,6 +169,10 @@ function startGame(){
     allowScriptAccess: true,
     openUrlMode: 'allow'
   });
+  // headless autoplay quirk: force-play retries
+  let fpt = 0;
+  const fp = () => { try { player.play(); } catch(e) {} if (++fpt < 8) setTimeout(fp, 1000); };
+  setTimeout(fp, 500);
 }
 
 document.getElementById('start').addEventListener('click', startGame);
